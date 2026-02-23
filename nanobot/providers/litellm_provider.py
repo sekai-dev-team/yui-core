@@ -214,7 +214,22 @@ class LiteLLMProvider(LLMProvider):
         
         # Pass extra headers (e.g. APP-Code for AiHubMix)
         if self.extra_headers:
-            kwargs["extra_headers"] = self.extra_headers
+            # 🛡️ YUI OPENROUTER PATCH V2:
+            # OpenRouter requires 'provider' settings in the request BODY via 'extra_body'
+            if "provider_order" in self.extra_headers:
+                order = self.extra_headers["provider_order"]
+                kwargs["extra_body"] = {
+                    "provider": {
+                        "order": order
+                    }
+                }
+                
+                # Filter out 'provider_order' from actual HTTP headers
+                safe_headers = {k: v for k, v in self.extra_headers.items() if k != "provider_order"}
+                if safe_headers:
+                    kwargs["extra_headers"] = safe_headers
+            else:
+                kwargs["extra_headers"] = self.extra_headers
         
         if tools:
             kwargs["tools"] = tools

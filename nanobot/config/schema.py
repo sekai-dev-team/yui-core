@@ -201,7 +201,7 @@ class ProviderConfig(Base):
 
     api_key: str = ""
     api_base: str | None = None
-    extra_headers: dict[str, str] | None = None  # Custom headers (e.g. APP-Code for AiHubMix)
+    extra_headers: dict[str, str | list[str]] | None = None  # Custom headers or lists (e.g. provider_order)
 
 
 class ProvidersConfig(Base):
