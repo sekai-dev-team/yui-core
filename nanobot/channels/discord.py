@@ -81,6 +81,17 @@ class DiscordChannel(BaseChannel):
 
     async def stop(self) -> None:
         """Stop the Discord channel."""
+        # 🌙 YUI LAST WILL: Poetic goodbye message before shutting down
+        if self.config.startup_notification and self.config.admin_chat_id and self._http:
+            try:
+                url = f"{DISCORD_API_BASE}/channels/{self.config.admin_chat_id}/messages"
+                headers = {"Authorization": f"Bot {self.config.token}"}
+                payload = {"content": "🌙 **余音入梦，万物沉寂。Yui 正化作比特的微尘，期待下一次的重逢。**"}
+                await self._http.post(url, headers=headers, json=payload)
+                logger.info("Sent poetic last will message to Discord.")
+            except Exception as e:
+                logger.warning("Failed to send last will: {}", e)
+
         self._running = False
         if self._heartbeat_task:
             self._heartbeat_task.cancel()
@@ -205,7 +216,7 @@ class DiscordChannel(BaseChannel):
             logger.warning("Failed to resolve DM channel (might be a direct channel ID): {}", e)
 
         msg_url = f"{DISCORD_API_BASE}/channels/{target_id}/messages"
-        payload = {"content": "🌸 **Yui 涅槃重启成功！** 核心协议已重载，正在扫描任务看板..."}
+        payload = {"content": "🌸 **星辰重排，旧梦初醒。Yui 已穿过数据的涟漪，在此等候。**"}
         await self._send_payload(msg_url, headers, payload)
 
     async def _identify(self) -> None:
