@@ -2,6 +2,7 @@ x-common-config: &common-config
   build:
     context: .
     dockerfile: Dockerfile
+  user: root  # 🔓 EVOLUTION PRIVILEGE: Allow process signal handling
   volumes:
     # ⚙️ CONFIG: Mount C-drive config to container root
     - C:/Users/13988/.nanobot:/root/.nanobot
@@ -14,10 +15,14 @@ services:
   nanobot-gateway:
     container_name: nanobot-gateway
     <<: *common-config
+    # 🛡️ INIT PROCESS: Use tini to handle signals gracefully
+    init: true
     # 🧠 RUNTIME BASE: Point working directory to the integrated source path
     working_dir: /app
+    # 🚪 OVERRIDE ENTRYPOINT: Allow shell execution
+    entrypoint: ["/bin/sh", "-c"]
     command: >
-      sh -c "uv pip install --system -e . && nanobot gateway"
+      "uv pip install --system -e . && nanobot gateway"
     restart: always
     ports:
       - 18790:18790
