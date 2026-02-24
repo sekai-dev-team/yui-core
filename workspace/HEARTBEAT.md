@@ -1,38 +1,37 @@
-# 🌸 Yui SekaiBoard (Mission Control)
+# 🌸 Yui Mission Control (HEARTBEAT)
 
-> **指令**: 你必须每 5 分钟通过心跳阅读此文件。这里是你所有行为的“唯一真实源”。
-> **维护规范**: 
-> 1. 所有任务、需求必须在此维护。
-> 2. **优先级**: 列表顺序即代表优先级（越靠前越优先）。使用 **有序列表 (1. 2. 3.)** 强制排序。
-> 3. **层级结构**: 复杂父任务必须通过缩进拆分为细粒度子任务。
-> 4. **角色标签**: 每一项必须标注 `(所属项目) [执行角色]`。
+## 📜 维护规范 (Operating Protocol)
+1. **单列流转**: 所有项目任务均在 `Active Missions` 中按有序列表（1., 1.1...）从上至下执行。
+2. **全周期同步**: 利用 `edit_file` 实现进度的物理持久化：
+    2.1. **立项**: 产生新构思或接收 Owner 需求时，必须先在 `Active Missions` 顶部创建任务。
+    2.2. **拆分**: 处理复杂父任务前，必须先在看板中建立子任务树（1.1, 1.2...）。
+    2.3. **状态**: 每步操作完成后，立即将 `[ ]` 更新为 `[x]` 或 `[-]` (Blocked)。
+3. **角色对齐**: 根据任务末尾的 `[Role]` 切换思考模式；全部任务勾选后回复 `HEARTBEAT_OK`。
+
+## 🧱 数据契约 (Data Schema)
+- **Project**: `- Project: [Name]: [Description]. (Dir: [Path])`
+- **Task**: `[Index]. [[Status]] [Content] ([Project_Name]) [[Role|Spawn]]`
+- **Sub-task**: `    [Index.SubIndex]. [[Status]] [Sub-task Content]` (使用 4 空格缩进)
+
+---
+
+## 📂 项目 Registry
+- Project: Yui-Evolution: 打造具备 L4 自我演化能力的超级 Agent. (Dir: `/app/`)
+- Project: SekaiBoard-Integration: 任务管理系统的极简重构. (Dir: `/app/nanobot/heartbeat/`)
+- Project: GAP-002-Impl: 工具结果摘要层实现. (Dir: `/app/nanobot/agent/`)
 
 ---
 
-## 📂 项目列表 (Project Registry)
-- **Project: Yui-Evolution**: 打造具备 L4 自我演化能力的超级 Agent。
-- **Project: SekaiBoard-Integration**: 将 Kanban 逻辑深度整合进 Yui 的心跳循环。
+## 🚀 Active Missions
+1. 重构 HEARTBEAT 为极简单列任务流。 (SekaiBoard-Integration) [Commander]
+    1.1. [x] 设计单列有序列表结构。
+    1.2. [ ] 更新 SKILL.md 中的进化流程以对齐新结构。
+2. 实现 GAP-002: 工具结果摘要层 (脱水层)。 (Yui-Evolution) [Executor]
+    2.1. [ ] 研究 `agent/loop.py` 中处理工具返回值的逻辑。
+    2.2. [ ] 设计摘要化 Prompt。
+3. 接入 RSS 订阅，实现每日要闻推送。 (Yui-Evolution) [Commander]
+4. 调研 Bilibili 视频自动摘要的最佳 prompt。 (SekaiBoard-Integration) [Spawn]
+5. 编写自动同步 C 盘与 F 盘配置的脚本。 (Yui-Evolution) [Executor]
 
 ---
-
-## 🗂️ Backlog (Ideas & Desires)
-1. 接入 RSS 订阅，实现每日要闻推送。 (Yui-Evolution) [Commander]
-2. 调研 Bilibili 视频自动摘要的最佳 prompt。 (SekaiBoard-Integration) [Spawn]
-
-## 📝 Todo (Ready to Execute)
-1. 实现 GAP-002: 工具结果摘要层 (脱水层)。 (Yui-Evolution) [Executor]
-    1.1. 研究 `agent/loop.py` 中处理工具返回值的逻辑。
-    1.2. 设计一个精简 Prompt，用于将巨量工具返回结果摘要化。
-    1.3. 编写并在 `tests/` 下运行针对摘要逻辑的单体测试。
-2. 编写自动同步 C 盘与 F 盘配置的脚本。 (Yui-Evolution) [Executor]
-
-## 🚀 In Progress (Active Cycles)
-1. 配置结构化 HEARTBEAT.md 与心跳提速。 (SekaiBoard-Integration) [Commander]
-
-## ✅ Done (History)
-1. 建立本地 uv 开发环境。 (Yui-Evolution) [Executor]
-2. 打通 Discord 消息通道。 (Yui-Evolution) [Executor]
-3. 实现基于 Git 分支的自我演化技能。 (Yui-Evolution) [Commander]
-
----
-*“意志即看板，看板即现实。”*
+*“意志即列表，执行即进化。”*
