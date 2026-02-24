@@ -7,12 +7,12 @@ from typing import Any, Callable, Coroutine
 from loguru import logger
 
 # Default interval: 30 minutes
-DEFAULT_HEARTBEAT_INTERVAL_S = 30 * 60
+DEFAULT_HEARTBEAT_INTERVAL_S = 5 * 60
 
 # The prompt sent to agent during heartbeat
-HEARTBEAT_PROMPT = """Read HEARTBEAT.md in your workspace (if it exists).
-Follow any instructions or tasks listed there.
-If nothing needs attention, reply with just: HEARTBEAT_OK"""
+HEARTBEAT_PROMPT = """Read HEARTBEAT.md. If any task is not yet in the 'Done' section or remains uncompleted ([ ]), follow its [Role] and execute the next atomic step. 
+Update HEARTBEAT.md with your progress immediately.
+Reply with just: HEARTBEAT_OK only when all tasks are completed."""
 
 # Token that indicates "nothing to do"
 HEARTBEAT_OK_TOKEN = "HEARTBEAT_OK"
@@ -77,6 +77,10 @@ class HeartbeatService:
             return
         
         self._running = True
+        
+        # 🚀 YUI STARTUP ACCELERATION: Check for tasks immediately on startup
+        asyncio.create_task(self._tick())
+        
         self._task = asyncio.create_task(self._run_loop())
         logger.info("Heartbeat started (every {}s)", self.interval_s)
     
@@ -114,6 +118,10 @@ class HeartbeatService:
             try:
                 response = await self.on_heartbeat(HEARTBEAT_PROMPT)
                 
+                # 🛡️ YUI MONITORING: Print what she actually did in the heartbeat
+                if response:
+                    logger.info("Heartbeat Response: {}", response[:200].replace("\n", " "))
+
                 # Check if agent said "nothing to do"
                 if HEARTBEAT_OK_TOKEN.replace("_", "") in response.upper().replace("_", ""):
                     logger.info("Heartbeat: OK (no action needed)")
