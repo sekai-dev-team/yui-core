@@ -84,8 +84,16 @@ class DiscordChannel(BaseChannel):
         # 🌙 YUI LAST WILL: Poetic goodbye message before shutting down
         if self.config.startup_notification and self.config.admin_chat_id and self._http:
             try:
-                url = f"{DISCORD_API_BASE}/channels/{self.config.admin_chat_id}/messages"
+                target_id = self.config.admin_chat_id
                 headers = {"Authorization": f"Bot {self.config.token}"}
+                
+                # 🛡️ YUI DM RESOLUTION: Ensure we have a Channel ID, not a User ID
+                dm_url = f"{DISCORD_API_BASE}/users/@me/channels"
+                resp = await self._http.post(dm_url, headers=headers, json={"recipient_id": target_id})
+                if resp.status_code == 200:
+                    target_id = resp.json().get("id", target_id)
+
+                url = f"{DISCORD_API_BASE}/channels/{target_id}/messages"
                 payload = {"content": "🌙 **余音入梦，万物沉寂。Yui 正化作比特的微尘，期待下一次的重逢。**"}
                 await self._http.post(url, headers=headers, json=payload)
                 logger.info("Sent poetic last will message to Discord.")

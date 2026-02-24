@@ -328,6 +328,7 @@ def gateway(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Start the nanobot gateway."""
+    from loguru import logger
     from nanobot.config.loader import load_config, get_data_dir
     from nanobot.bus.queue import MessageBus
     from nanobot.agent.loop import AgentLoop
@@ -416,22 +417,57 @@ def gateway(
     console.print(f"[green]✓[/green] Heartbeat: every 30m")
     
     async def run():
+        loop = asyncio.get_running_loop()
+        stop_event = asyncio.Event()
+
+        def _handle_exit():
+            logger.info("Shutdown signal received")
+            stop_event.set()
+
+        # 🛡️ YUI SIGNAL GUARD: Handle SIGTERM (Docker stop/kill 1)
+        import signal
+        try:
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, _handle_exit)
+        except NotImplementedError:
+            # Fallback for systems where add_signal_handler is not supported
+            pass
+
         try:
             await cron.start()
             await heartbeat.start()
 
-            await asyncio.gather(
-                agent.run(),
-                channels.start_all(),
-            )
-        except KeyboardInterrupt:
-            console.print("\nShutting down...")
+            # Create run tasks
+            agent_task = asyncio.create_task(agent.run())
+            channels_task = asyncio.create_task(channels.start_all())
+
+            # Wait until stop event is triggered
+            await stop_event.wait()
+
+            logger.info("Shutdown initiated. Sending last will...")
+            
+            # 🌙 YUI GRACEFUL FAREWELL: 
+            # 1. Stop channels first (this triggers the poetic message in discord.py)
+            await channels.stop_all()
+            
+            # 2. Give 2 seconds for the network request to actually leave the container
+            await asyncio.sleep(2)
+
+            logger.info("Cancelling active tasks...")
+            for task in [agent_task, channels_task]:
+                task.cancel()
+            
+            # 3. Final cleanup of tasks
+            await asyncio.gather(agent_task, channels_task, return_exceptions=True)
+
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            console.print("\nShutting down gracefully...")
         finally:
             await agent.close_mcp()
             heartbeat.stop()
             cron.stop()
             agent.stop()
-            await channels.stop_all()
+            # No redundant stop_all here, it's handled in the try sequence
     
     asyncio.run(run())
 
