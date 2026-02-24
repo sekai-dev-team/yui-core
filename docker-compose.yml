@@ -2,6 +2,9 @@ x-common-config: &common-config
   build:
     context: .
     dockerfile: Dockerfile
+    args:
+      - http_proxy=http://host.docker.internal:7890
+      - https_proxy=http://host.docker.internal:7890
   user: root  # 🔓 EVOLUTION PRIVILEGE: Allow process signal handling
   volumes:
     # ⚙️ CONFIG: Mount C-drive config to container root
@@ -22,7 +25,7 @@ services:
     # 🚪 OVERRIDE ENTRYPOINT: Allow shell execution
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "uv pip install --system -e . && nanobot gateway"
+      "uv pip install --system -e . && exec nanobot gateway"
     restart: always
     ports:
       - 18790:18790

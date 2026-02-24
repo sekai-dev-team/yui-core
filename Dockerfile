@@ -1,39 +1,42 @@
+# 使用多阶段构建来获取 Node.js
+FROM node:20-bookworm-slim AS node_base
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
-# Install Node.js 20 for the WhatsApp bridge
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates gnupg git && \
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
+# 1. 🚀 从官方镜像直接复制 Node.js 和 npm
+COPY --from=node_base /usr/local/bin/node /usr/local/bin/
+COPY --from=node_base /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+
+# 2. ⚡ 换源并安装最基础工具
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
     apt-get update && \
-    apt-get install -y --no-install-recommends nodejs && \
-    apt-get purge -y gnupg && \
-    apt-get autoremove -y && \
+    apt-get install -y --no-install-recommends curl git && \
+    # 🛡️ 协议修复
+    git config --global url."https://github.com/".insteadOf ssh://git@github.com/ && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Python dependencies first (cached layer)
+# 3. 🐍 安装 Python 依赖 (配置 uv 国内镜像源)
 COPY pyproject.toml README.md LICENSE ./
 RUN mkdir -p nanobot bridge && touch nanobot/__init__.py && \
-    uv pip install --system --no-cache . && \
+    # 🚀 SPEED UP: Use Tsinghua mirror for UV
+    uv pip install --system --no-cache --index-url https://pypi.tuna.tsinghua.edu.cn/simple . && \
     rm -rf nanobot bridge
 
-# Copy the full source and install
+# 4. 拷贝源码并安装
 COPY nanobot/ nanobot/
 COPY bridge/ bridge/
-RUN uv pip install --system --no-cache .
+RUN uv pip install --system --no-cache --index-url https://pypi.tuna.tsinghua.edu.cn/simple .
 
-# Build the WhatsApp bridge
+# 5. 编译 WhatsApp 桥接 (使用淘宝镜像源)
 WORKDIR /app/bridge
-RUN npm install && npm run build
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install && \
+    npm run build
 WORKDIR /app
 
-# Create config directory
 RUN mkdir -p /root/.nanobot
-
-# Gateway default port
 EXPOSE 18790
 
 ENTRYPOINT ["nanobot"]
