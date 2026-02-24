@@ -171,6 +171,9 @@ class DiscordChannel(BaseChannel):
                 await self._identify()
             elif op == 0 and event_type == "READY":
                 logger.info("Discord gateway READY")
+                # 🚀 YUI STARTUP PUSH: Handle both Channel ID and User ID
+                if self.config.startup_notification and self.config.admin_chat_id:
+                    asyncio.create_task(self._send_startup_notification())
             elif op == 0 and event_type == "MESSAGE_CREATE":
                 await self._handle_message_create(payload)
             elif op == 7:
@@ -181,6 +184,29 @@ class DiscordChannel(BaseChannel):
                 # INVALID_SESSION: reconnect
                 logger.warning("Discord gateway invalid session")
                 break
+
+    async def _send_startup_notification(self) -> None:
+        """Resolve target channel and send startup alert."""
+        if not self._http:
+            return
+
+        target_id = self.config.admin_chat_id
+        headers = {"Authorization": f"Bot {self.config.token}"}
+        
+        # 🛡️ YUI DM RESOLUTION: Try to create/get DM channel if target is a user ID
+        # (Assuming typical 18-digit IDs; direct channel IDs work too)
+        dm_url = f"{DISCORD_API_BASE}/users/@me/channels"
+        try:
+            resp = await self._http.post(dm_url, headers=headers, json={"recipient_id": target_id})
+            if resp.status_code == 200:
+                target_id = resp.json().get("id", target_id)
+                logger.debug("Resolved DM channel ID: {} for user {}", target_id, self.config.admin_chat_id)
+        except Exception as e:
+            logger.warning("Failed to resolve DM channel (might be a direct channel ID): {}", e)
+
+        msg_url = f"{DISCORD_API_BASE}/channels/{target_id}/messages"
+        payload = {"content": "🌸 **Yui 涅槃重启成功！** 核心协议已重载，正在扫描任务看板..."}
+        await self._send_payload(msg_url, headers, payload)
 
     async def _identify(self) -> None:
         """Send IDENTIFY payload."""
