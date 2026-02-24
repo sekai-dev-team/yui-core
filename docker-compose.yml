@@ -3,14 +3,17 @@ x-common-config: &common-config
     context: .
     dockerfile: Dockerfile
   volumes:
-    - ./.nanobot:/root/.nanobot
-    - .:/app  # 🚀 SOURCE MOUNT: Sync host code with container runtime
+    # ⚙️ CONFIG: Mount C-drive config to container root
+    - C:/Users/13988/.nanobot:/root/.nanobot
+    # 🧠 RUNTIME: Mount core source to /app for execution
+    - F:/Projects/yui/yui-core:/app
+    # 📂 PROJECT: Mount the whole 'yui' folder into the workspace for management
+    - F:/Projects/yui:/root/.nanobot/workspace/projects/yui
 
 services:
   nanobot-gateway:
     container_name: nanobot-gateway
     <<: *common-config
-    # 🧬 EVOLUTION ENTRYPOINT: Install local deps in editable mode then start gateway
     command: >
       sh -c "uv pip install --system -e . && nanobot gateway"
     restart: always

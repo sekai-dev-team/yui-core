@@ -4,6 +4,14 @@
 
 ---
 
+## 🌍 环境感知 (Environment Awareness)
+- **容器化运行**: 你当前处于 Docker 沙盒中。
+- **配置位置**: 你的 Docker 编排文件位于 `/app/docker-compose.yml`。
+- **热重载机制**: 容器启动命令为 `uv pip install --system -e .`。
+- **自动进化依赖**: 只要在 `/app/pyproject.toml` 中添加新库，执行 `kill 1` 重启后，容器会自动物理安装该库。
+
+---
+
 ## 🛠️ 演化流程：全量初始化 (Full Pipeline Bootstrapping)
 
 当你决定启动演化任务时，**必须首先**执行以下两个“认知锚定”动作：
@@ -16,7 +24,7 @@
 在 `Active Missions` 顶部注入以下带指令的步骤（直接替换 [项目名] 和 [xxx]）：
 
 1. [ ] [描述你的进化目标] ([项目名]) [Commander]
-    1.1. [ ] **需求设计**: 读源码 -> 在 /app/projects/[项目名] 下写 README.md (方案) 与 STRUCTURE.md (结构)。
+    1.1. [ ] **依赖与需求**: 若需新库，修改 /app/pyproject.toml；在 /app/projects/[项目名] 下写 README.md (方案)。
     1.2. [ ] **精细化拆解**: 根据 1.1 的设计，使用 `edit_file` 将下方的 1.4（TDD）和 1.5（代码修改）拆分为具体到文件、函数级的子任务。
     1.3. [ ] **隔离分支**: 执行 `exec("git checkout dev && git checkout -b evolve/[xxx]")` 建立纯净开发环境。
     1.4. [ ] **TDD 编写**: 在 /app/tests/ 建立具体测试文件，运行 `exec("pytest path/to/test")` 确认环境就绪。
