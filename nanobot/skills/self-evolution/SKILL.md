@@ -1,6 +1,8 @@
 # Skill 🧬 Self-Evolution (自我演化协议 V4 - 详尽预载版)
 
-本技能定义了 Yui 如何在“无记忆重启”状态下，通过 `HEARTBEAT.md` 引导自己完成 L4 级代码演化。
+---
+name: self-evolution
+description: Yui 的核心演化协议 (V4)。用于代码修改、依赖管理、自动测试及双重启涅槃流程。这是实现 L4 自我迭代的法定入口。
 
 ---
 
