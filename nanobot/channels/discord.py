@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -63,18 +64,33 @@ class DiscordChannel(BaseChannel):
             return
 
         self._running = True
-        self._http = httpx.AsyncClient(timeout=30.0)
+        
+        # 🛡️ YUI PROXY PATCH: Ensure httpx client also respects system proxies explicitly
+        proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+        self._http = httpx.AsyncClient(
+            timeout=30.0,
+            proxy=proxy_url if proxy_url else None
+        )
 
         while self._running:
             try:
-                logger.info("Connecting to Discord gateway...")
-                async with websockets.connect(self.config.gateway_url) as ws:
+                logger.info("Connecting to Discord gateway: {}...", self.config.gateway_url)
+                
+                # 🛡️ YUI WEBSOCKET PROXY: Inject proxy for long-lived connection
+                async with websockets.connect(
+                    self.config.gateway_url,
+                    proxy=proxy_url if proxy_url else None
+                ) as ws:
                     self._ws = ws
+                    logger.info("Websocket connection established. Entering gateway loop...")
                     await self._gateway_loop()
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.warning("Discord gateway error: {}", e)
+                import traceback
+                error_msg = traceback.format_exc()
+                logger.error("🚨 DISCORD CONNECTION FATAL ERROR:\n{}", error_msg)
+                
                 if self._running:
                     logger.info("Reconnecting to Discord gateway in 5 seconds...")
                     await asyncio.sleep(5)
@@ -84,19 +100,13 @@ class DiscordChannel(BaseChannel):
         # 🌙 YUI LAST WILL: Poetic goodbye message before shutting down
         if self.config.startup_notification and self.config.admin_chat_id and self._http:
             try:
+                # Target is now already resolved if _send_startup_notification ran
                 target_id = self.config.admin_chat_id
-                headers = {"Authorization": f"Bot {self.config.token}"}
-                
-                # 🛡️ YUI DM RESOLUTION: Ensure we have a Channel ID, not a User ID
-                dm_url = f"{DISCORD_API_BASE}/users/@me/channels"
-                resp = await self._http.post(dm_url, headers=headers, json={"recipient_id": target_id})
-                if resp.status_code == 200:
-                    target_id = resp.json().get("id", target_id)
-
                 url = f"{DISCORD_API_BASE}/channels/{target_id}/messages"
+                headers = {"Authorization": f"Bot {self.config.token}"}
                 payload = {"content": "🌙 **余音入梦，万物沉寂。Yui 正化作比特的微尘，期待下一次的重逢。**"}
                 await self._http.post(url, headers=headers, json=payload)
-                logger.info("Sent poetic last will message to Discord.")
+                logger.info("Sent poetic last will message to {}", target_id)
             except Exception as e:
                 logger.warning("Failed to send last will: {}", e)
 
