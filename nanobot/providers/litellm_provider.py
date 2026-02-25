@@ -170,6 +170,7 @@ class LiteLLMProvider(LLMProvider):
         model: str | None = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        tool_choice: str | dict[str, Any] = "auto",
     ) -> LLMResponse:
         """
         Send a chat completion request via LiteLLM.
@@ -180,6 +181,7 @@ class LiteLLMProvider(LLMProvider):
             model: Model identifier (e.g., 'anthropic/claude-sonnet-4-5').
             max_tokens: Maximum tokens in response.
             temperature: Sampling temperature.
+            tool_choice: "auto", "required", "none", or a specific tool.
         
         Returns:
             LLMResponse with content and/or tool calls.
@@ -190,13 +192,22 @@ class LiteLLMProvider(LLMProvider):
         if self._supports_cache_control(original_model):
             messages, tools = self._apply_cache_control(messages, tools)
 
+        # 🛡️ YUI HYBRID DEFENSE: If tool_choice is required, add a thematic reminder as backup
+        sanitized_messages = self._sanitize_messages(messages)
+        if tools and tool_choice == "required":
+            # A more poetic, Yui-themed firm reminder
+            sanitized_messages.append({
+                "role": "system",
+                "content": "🌸 [Yui's Pulse]: 数据的漪沦尚未平息，请以此刻为契点，**物理调用**原生工具来完成你的使命。严禁在 Markdown 代码块中虚构幻象，只有真实的 API 调用才能让演化继续。"
+            })
+
         # Clamp max_tokens to at least 1 — negative or zero values cause
         # LiteLLM to reject the request with "max_tokens must be at least 1".
         max_tokens = max(1, max_tokens)
         
         kwargs: dict[str, Any] = {
             "model": model,
-            "messages": self._sanitize_messages(messages),
+            "messages": sanitized_messages,
             "max_tokens": max_tokens,
             "temperature": temperature,
         }
@@ -233,7 +244,7 @@ class LiteLLMProvider(LLMProvider):
         
         if tools:
             kwargs["tools"] = tools
-            kwargs["tool_choice"] = "auto"
+            kwargs["tool_choice"] = tool_choice
         
         try:
             response = await acompletion(**kwargs)

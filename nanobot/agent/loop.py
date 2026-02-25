@@ -177,9 +177,16 @@ class AgentLoop:
         iteration = 0
         final_content = None
         tools_used: list[str] = []
+        lazy_count = 0  # 💡 YUI TRACKER: Count lazy/hallucinated attempts
 
         while iteration < self.max_iterations:
             iteration += 1
+
+            # 🛠️ YUI DYNAMIC CONSTRAINT: Force tool calling if model is being lazy
+            tool_choice = "auto"
+            if lazy_count >= 2:
+                tool_choice = "required"
+                logger.warning("🛡️ YUI TRIGGERED FORCE-CALL: Setting tool_choice='required'")
 
             response = await self.provider.chat(
                 messages=messages,
@@ -187,9 +194,32 @@ class AgentLoop:
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                tool_choice=tool_choice,
             )
 
+            # 🛡️ YUI INTERCEPTOR: Detect "Action Hallucination" (Code blocks instead of API calls)
+            if not response.has_tool_calls and response.content:
+                # Regex to find JSON or shell-like blocks that look like tool intents
+                fake_call_patterns = [
+                    r"```(?:json|bash|sh|python)\s*\{[\s\S]*?\"(?:action|tool|method)\"[\s\S]*?\}", # JSON-like
+                    r"```(?:bash|sh)\s*(?:cat|echo|sed|mkdir|rm|uv|pip|nanobot)[\s\S]*?```", # Shell-like
+                ]
+                is_hallucinating = any(re.search(p, response.content, re.IGNORECASE) for p in fake_call_patterns)
+                
+                if is_hallucinating:
+                    lazy_count += 1
+                    logger.warning("🚨 YUI INTERCEPTED HALLUCINATION: Fake tool call detected in Markdown.")
+                    messages = self.context.add_assistant_message(messages, response.content)
+                    messages.append({
+                        "role": "user",
+                        "content": "⚠️ [SYSTEM INTERCEPT]: You attempted to write a tool call inside a Markdown block. "
+                                   "This CANNOT be executed. Please use the NATIVE Tool/Function calling interface "
+                                   "provided by the API immediately to perform this action physically."
+                    })
+                    continue # Re-run loop with the stern warning
+
             if response.has_tool_calls:
+                lazy_count = 0 # Reset laziness on success
                 if on_progress:
                     clean = self._strip_think(response.content)
                     if clean:
