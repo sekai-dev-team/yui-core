@@ -14,7 +14,7 @@ ENV PATH="/usr/local/bin:$PATH"
 # 2. ⚡ 换源并安装最基础工具
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
     apt-get update && \
-    apt-get install -y --no-install-recommends curl git && \
+    apt-get install -y --no-install-recommends curl git gh && \
     git config --global url."https://github.com/".insteadOf ssh://git@github.com/ && \
     rm -rf /var/lib/apt/lists/*
 
