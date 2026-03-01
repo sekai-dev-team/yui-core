@@ -381,7 +381,7 @@ def gateway(
         stop_event = asyncio.Event()
 
         def _handle_exit():
-            logger.info("Shutdown signal received")
+            # Robust exit: avoid external dependencies that might trigger NameError in signal handlers
             stop_event.set()
 
         # 🛡️ YUI SIGNAL GUARD: Handle SIGTERM (Docker stop/kill 1)
@@ -403,31 +403,35 @@ def gateway(
 
             # Wait until stop event is triggered
             await stop_event.wait()
-
-            logger.info("Shutdown initiated. Sending last will...")
-            
-            # 🌙 YUI GRACEFUL FAREWELL: 
-            # 1. Stop channels first (this triggers the poetic message in discord.py)
-            await channels.stop_all()
-            
-            # 2. Give 2 seconds for the network request to actually leave the container
-            await asyncio.sleep(2)
-
-            logger.info("Cancelling active tasks...")
-            for task in [agent_task, channels_task]:
-                task.cancel()
-            
-            # 3. Final cleanup of tasks
-            await asyncio.gather(agent_task, channels_task, return_exceptions=True)
+            logger.info("Shutdown initiated by signal event.")
 
         except (KeyboardInterrupt, asyncio.CancelledError):
             console.print("\nShutting down gracefully...")
+        except Exception as e:
+            logger.error("Unexpected error during runtime: {}", e)
         finally:
-            await agent.close_mcp()
+            logger.info("Cleanup phase started. Sending last will and stopping channels...")
+            # 🌙 YUI CRITICAL PRIORITY: Stop channels first to ensure message is sent
+            # This must happen before cancelling other tasks to keep the loop healthy
+            await channels.stop_all()
+            
+            # Give 2.5 seconds for the network buffers to flush before the container dies
+            await asyncio.sleep(2.5)
+
+            logger.info("Cancelling active agent and heartbeat tasks...")
             heartbeat.stop()
             cron.stop()
             agent.stop()
-            await channels.stop_all()
+            
+            # Cancel background run tasks
+            for task in [agent_task, channels_task]:
+                if not task.done():
+                    task.cancel()
+            
+            await agent.close_mcp()
+            # Final join of tasks
+            await asyncio.gather(agent_task, channels_task, return_exceptions=True)
+            logger.info("Yui has safely returned to the binary void.")
 
     asyncio.run(run())
 
