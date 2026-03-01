@@ -89,6 +89,7 @@ class LLMProvider(ABC):
         model: str | None = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        tool_choice: str | dict[str, Any] = "auto",
         reasoning_effort: str | None = None,
     ) -> LLMResponse:
         """
