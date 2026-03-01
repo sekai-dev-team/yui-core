@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import typer
+from loguru import logger
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
