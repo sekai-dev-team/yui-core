@@ -55,6 +55,7 @@ class DiscordChannel(BaseChannel):
         self._heartbeat_task: asyncio.Task | None = None
         self._typing_tasks: dict[str, asyncio.Task] = {}
         self._http: httpx.AsyncClient | None = None
+        self._resolved_admin_channel_id: str | None = None
 
     async def start(self) -> None:
         """Start the Discord gateway connection."""
@@ -97,17 +98,22 @@ class DiscordChannel(BaseChannel):
     async def stop(self) -> None:
         """Stop the Discord channel."""
         # 🌙 YUI LAST WILL: Poetic goodbye message before shutting down
-        if self.config.startup_notification and self.config.admin_chat_id and self._http:
-            try:
-                # Target is now already resolved if _send_startup_notification ran
-                target_id = self.config.admin_chat_id
-                url = f"{DISCORD_API_BASE}/channels/{target_id}/messages"
-                headers = {"Authorization": f"Bot {self.config.token}"}
-                payload = {"content": "🌙 **余音入梦，万物沉寂。Yui 正化作比特的微尘，期待下一次的重逢。**"}
-                await self._http.post(url, headers=headers, json=payload)
-                logger.info("Sent poetic last will message to {}", target_id)
-            except Exception as e:
-                logger.warning("Failed to send last will: {}", e)
+        if self.config.startup_notification and self._http:
+            # Use resolved ID if available, fallback to config
+            target_id = self._resolved_admin_channel_id or self.config.admin_chat_id
+            if target_id:
+                try:
+                    url = f"{DISCORD_API_BASE}/channels/{target_id}/messages"
+                    headers = {"Authorization": f"Bot {self.config.token}"}
+                    payload = {"content": "🌙 **余音入梦，万物沉寂。Yui 正化作比特的微尘，期待下一次的重逢。**"}
+                    resp = await self._http.post(url, headers=headers, json=payload)
+                    
+                    if resp.status_code != 200:
+                        logger.warning("Failed to send last will (HTTP {}): {}", resp.status_code, resp.text)
+                    else:
+                        logger.info("Sent poetic last will message to {}", target_id)
+                except Exception as e:
+                    logger.warning("Exception while sending last will: {}", e)
 
         self._running = False
         if self._heartbeat_task:
@@ -227,7 +233,9 @@ class DiscordChannel(BaseChannel):
         try:
             resp = await self._http.post(dm_url, headers=headers, json={"recipient_id": target_id})
             if resp.status_code == 200:
-                target_id = resp.json().get("id", target_id)
+                resolved_id = resp.json().get("id", target_id)
+                self._resolved_admin_channel_id = resolved_id
+                target_id = resolved_id
                 logger.debug("Resolved DM channel ID: {} for user {}", target_id, self.config.admin_chat_id)
         except Exception as e:
             logger.warning("Failed to resolve DM channel (might be a direct channel ID): {}", e)
